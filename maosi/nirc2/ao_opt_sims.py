@@ -1,0 +1,183 @@
+import numpy as np
+import pyfits
+from astropy.table import Table
+from maosi.scene import Scene
+from maosi.instrument import Instrument
+from maosi.observation import Observation
+from maosi.psf import PSF_grid
+import time
+
+class GCstars(Scene):
+    def __init__(self, label_file='/g/lu/data/gc/source_list/label.dat'):
+        self.label_file = label_file
+        
+        self.stars = read_label_dat(label_file)
+
+        # Start off our object with all the positions at time t_naught. This
+        # isn't strictly observable, but it will do for now.
+        x_now = self.stars['x']
+        y_now = self.stars['y']
+
+        # Built in conversion that a 9th magnitude star should give roughly
+        # 24000 DN on a NIRC2 central pixel in the K-band in a 2.8 sec exposure.
+        # The zeropoint calculated is integrated (has an aperture correction to
+        # go from the central pixel value based on Gunther's PSF grid...
+        # it is approximate).
+        aper_corr = 387.605 
+        ZP_flux = (24000.0 * 4 / 2.8) * aper_corr
+        ZP_mag = 9.0
+            
+        f_now = 10**((self.stars['Kmag'] - ZP_mag) / -2.5) * ZP_flux
+
+        super(self.__class__, self).__init__(x_now, y_now, f_now)
+
+        return
+
+    def move_to_epoch(self, year):
+        """
+        year in decimals
+
+        This will modify self.xpos, ypos using velocities from the initial
+        label.dat file.
+        """
+        dt = time - self.stars['t0']
+        self.xpos = self.stars['x'] + (dt * self.stars['vx'])
+        self.ypos = self.stars['y'] + (dt * self.stars['vy'])
+
+        return
+
+class NIRC2(Instrument):
+    def __init__(self):
+        array_size = np.array((1024, 1024))
+        readnoise = 60.0    # electrons
+        dark_current = 0.1  # electrons / sec / pix
+        gain = 4.0          # electrons per DN
+        
+        super(self.__class__, self).__init__(array_size, readnoise, dark_current, gain)
+
+        self.scale = 0.01   # mas/pix
+        self.tint = 2.8
+        self.coadds = 10
+        self.fowler = 8
+
+        return
+
+class PSF_grid_NIRC2_Kp(PSF_grid):
+    """
+    Container for a grid of NIRC2 PSFs. This function hosts
+    all of the interpolation routines such that you can "get_psf"
+    anywhere in the focal plane.
+    """
+    def __init__(self, psf, grid_points):
+
+        """
+        Load up a FITS file that contains at least 1, or possibly a grid
+        of PSFs. These are stored and you can interpolate between them
+        if necessary.
+        """
+        psf_scale = [0.010]  # arcseconds per pixel
+
+        grid_shape_tmp = np.sqrt(psf.shape[0])
+        grid_shape = np.array((grid_shape_tmp, grid_shape_tmp))
+        self.grid_shape = grid_shape
+        
+        # Fix wave_array to be a float
+        wave_array=[2120]        
+        wave_shape = 1
+
+        if wave_shape != len(wave_array):
+            print 'Problem with PSF shape and wave_array shape'
+
+
+        # Reshape the array to get the X and Y positions
+        psf = psf.reshape((wave_shape, grid_shape[0], grid_shape[1],
+                           psf.shape[1], psf.shape[2]))
+        #psf = np.swapaxes(psf, 1, 2)
+
+        grid = grid_points.reshape((wave_shape, grid_shape[0], grid_shape[1],
+                                    grid_points.shape[1]))
+        #grid = np.swapaxes(grid, 1, 2)
+        
+
+        # Calculate the positions of all these PSFs. We assume that the
+        # outermost PSFs are at the corners such that all observed stars
+        # are internal to these corners. These are 1D arrays.
+        x_pos = grid[0, 0, :, 0]
+        y_pos = grid[0, :, 0, 1]
+
+        self.psf = psf
+        self.psf_x = x_pos
+        self.psf_y = y_pos
+        self.psf_wave = wave_array
+        self.wave_shape = wave_shape
+        self.grid_shape = grid_shape
+        self.psf_scale = psf_scale
+
+        return
+        
+
+    
+def read_label_dat(label_file='/g/lu/data/gc/source_list/label.dat'):
+    gcstars = Table.read(label_file, format='ascii')
+
+    gcstars.rename_column('col1', 'name')
+    gcstars.rename_column('col2', 'Kmag')
+    gcstars.rename_column('col3', 'x')
+    gcstars.rename_column('col4', 'y')
+    gcstars.rename_column('col5', 'xerr')
+    gcstars.rename_column('col6', 'yerr')
+    gcstars.rename_column('col7', 'vx')
+    gcstars.rename_column('col8', 'vy')
+    gcstars.rename_column('col9', 'vxerr')
+    gcstars.rename_column('col10', 'vyerr')
+    gcstars.rename_column('col11', 't0')
+    gcstars.rename_column('col12', 'use?')
+    gcstars.rename_column('col13', 'r2d')
+
+    return gcstars
+
+def read_nirc2_psf_grid(dir='/Users/jlu/work/ao/ao_optimization/test_sim_img/'):
+    psf_file = dir + 'psf_stack.fits'
+
+    print 'Loading PSF grid from: '
+    print psf_file
+    psfs = pyfits.getdata(psf_file)
+
+    # Repair them because there shouldn't be pixels with flux < 0.
+    # To preserve the noise properties, just add a zeropoint offset.
+    # Get the minimum pixel value across all the PSFs so they stay
+    # properly normalized.
+    psf_min = psfs.min()
+
+    # Positify and normalize and the PSFs.
+    for ii in range(psfs.shape[0]):
+        psfs[ii][psfs[ii] < 0] = 0
+        # if psf_min < 0:
+        #     psfs[ii] -= psf_min
+            
+        psfs[ii] /= psfs[ii].sum()
+
+    return psfs
+
+def test_nirc2_img(psf_grid_raw, dir='/Users/jlu/work/ao/ao_optimization/test_sim_img/'):
+    time_start = time.time()
+    
+    nirc2 = NIRC2()
+    
+    print 'Reading GC Label.dat: {0} sec'.format(time.time() - time_start)
+    stars = GCstars()
+    
+    if psf_grid_raw is None:
+        psf_grid_raw = read_nirc2_psf_grid(dir=dir)
+
+    grid_pos = pyfits.getdata(dir + 'grid.fits')
+
+    psfgrid = PSF_grid_NIRC2_Kp(psf_grid_raw, grid_pos)
+
+    print 'Making Image: {0} sec'.format(time.time() - time_start)
+    obs = Observation(nirc2, stars, psfgrid, 0, 3.0, origin=np.array([512, 512]))
+    print 'Saving Image: {0} sec'.format(time.time() - time_start)
+    obs.save_to_fits('tmp.fits', clobber=True)
+
+
+    
