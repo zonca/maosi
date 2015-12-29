@@ -4,6 +4,7 @@ import pyfits
 from scipy.interpolate import RectBivariateSpline
 import math
 import pdb
+from astropy.table import Table
 
 class Observation(object):
     def __init__(self, instrument, scene, psf_grid, wave, background,
@@ -21,10 +22,10 @@ class Observation(object):
         # This will be the image in electrons... convert to DN at the end.
         img = np.zeros(instrument.array_size, dtype=float)
 
-        # Add the background and dark current in electrons
         itime_tot = instrument.itime * instrument.coadds
         flux_to_counts = itime_tot / instrument.gain
 
+        # Add the background and dark current in electrons
         img += (background + instrument.dark_current) * flux_to_counts
 
         # Total readnoise in electrons
@@ -41,6 +42,8 @@ class Observation(object):
         psf_i_scaled = psf_i * (psf_grid.psf_scale[wave] / instrument.scale)
 
         x, y = convert_scene_to_pixels(scene, instrument, origin, PA)
+
+        keep_idx = []
 
         # Add the point sources
         print 'Observation: Adding stars one by one.'
@@ -93,9 +96,10 @@ class Observation(object):
             # Add the PSF to the image.
             img[ylo:yhi, xlo:xhi] += psf_star
 
-            
-        print 'Observation: Finished adding stars.'
+            keep_idx.append(ii)
 
+        print 'Observation: Finished adding stars.'
+        
         #####
         # ADD NOISE: Up to this point, the image is complete; but noise free.
         #####
@@ -104,13 +108,25 @@ class Observation(object):
 
         # Add readnoise
         img_noise += np.random.normal(loc=0, scale=readnoise, size=img.shape)
-        
+
+        # Save the image to the object
         self.img = img_noise
 
+        # Create a table containing the information about the stars planted.
+        stars_x = x[keep_idx]
+        stars_y = y[keep_idx]
+        stars_counts = scene.flux[keep_idx] * flux_to_counts
+        stars = Table((stars_x, stars_y, stars_counts),
+                        names=("xpix", "ypix", "counts"),
+                        meta={'name':'stars table'})
+        self.stars = stars
+        
         return
 
     def save_to_fits(self, fitsfile, clobber=False):
         pyfits.writeto(fitsfile, self.img, clobber=clobber)
+
+        self.stars.write(fitsfile.replace('.fits', '_stars_table.fits'), format='fits')
 
         return
 

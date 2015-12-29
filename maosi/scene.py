@@ -7,8 +7,8 @@ class Scene(object):
 
     def __init__(self, stars_x, stars_y, stars_f):
         """
-        X Position (in pixels)
-        Y Position (in pixels)
+        X Position (in arcsec)
+        Y Position (in arcsec)
         Flux (in electrons/sec)
         """
         self.xpos = stars_x

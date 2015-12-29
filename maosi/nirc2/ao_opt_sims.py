@@ -137,23 +137,17 @@ def read_label_dat(label_file='/g/lu/data/gc/source_list/label.dat'):
     return gcstars
 
 def read_nirc2_psf_grid(dir='/Users/jlu/work/ao/ao_optimization/test_sim_img/'):
-    psf_file = dir + 'psf_stack.fits'
+    psf_file = dir + 'psf_stack_nice.fits'
 
     print 'Loading PSF grid from: '
     print psf_file
     psfs = pyfits.getdata(psf_file)
 
-    # Repair them because there shouldn't be pixels with flux < 0.
-    # To preserve the noise properties, just add a zeropoint offset.
-    # Get the minimum pixel value across all the PSFs so they stay
-    # properly normalized.
-    psf_min = psfs.min()
-
     # Positify and normalize and the PSFs.
     for ii in range(psfs.shape[0]):
+        # Repair them because there shouldn't be pixels with flux < 0.
+        # To preserve the noise properties, just clip the values to be zero.
         psfs[ii][psfs[ii] < 0] = 0
-        # if psf_min < 0:
-        #     psfs[ii] -= psf_min
             
         psfs[ii] /= psfs[ii].sum()
 
@@ -175,7 +169,12 @@ def test_nirc2_img(psf_grid_raw, dir='/Users/jlu/work/ao/ao_optimization/test_si
     psfgrid = PSF_grid_NIRC2_Kp(psf_grid_raw, grid_pos)
 
     print 'Making Image: {0} sec'.format(time.time() - time_start)
-    obs = Observation(nirc2, stars, psfgrid, 0, 3.0, origin=np.array([512, 512]))
+    wave_index = 0
+    background = 3.0 # elect_nicerons /sec
+    obs = Observation(nirc2, stars, psfgrid,
+                      wave_index, background,
+                      origin=np.array([512, 512]))
+    
     print 'Saving Image: {0} sec'.format(time.time() - time_start)
     obs.save_to_fits('tmp.fits', clobber=True)
 

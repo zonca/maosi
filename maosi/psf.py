@@ -4,7 +4,7 @@ import pyfits
 
 class PSF_grid(object):
     """
-    Container for a grid of 'imaka PSFs. This function hosts
+    Container for a grid of PSFs. This function hosts
     all of the interpolation routines such that you can "get_psf"
     anywhere in the focal plane.
     """
@@ -53,8 +53,8 @@ class PSF_grid(object):
 
         
         self.psf = psf
-        self.psf_x = x_pos
-        self.psf_y = y_pos
+        self.psf_x = x_pos  # 1D array
+        self.psf_y = y_pos  # 1D array
         self.psf_wave = wave_array
         self.wave_shape = wave_shape
         self.grid_shape = grid_shape
@@ -73,6 +73,10 @@ class PSF_grid(object):
 
         
     def get_local_psf(self, x, y, wave_idx):
+        """
+        Return an interpolated PSF at the requested [x, y] location.
+        Interpolation method is fast bilinear interpolation.
+        """
         psf_x = self.psf_x
         psf_y = self.psf_y
 
