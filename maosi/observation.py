@@ -42,12 +42,15 @@ class Observation(object):
         psf_i_scaled = psf_i * (psf_grid.psf_scale[wave] / instrument.scale)
 
         x, y = convert_scene_to_pixels(scene, instrument, origin, PA)
+    
 
         keep_idx = []
 
         # Add the point sources
         print 'Observation: Adding stars one by one.'
         for ii in range(len(x)):
+            if ii % 1000 == 0:
+                print ii
             # Fetch the appropriate interpolated PSF and scale by flux.
             # This is only good to a single pixel.
             try:
@@ -104,7 +107,9 @@ class Observation(object):
         # ADD NOISE: Up to this point, the image is complete; but noise free.
         #####
         # Add Poisson noise from dark, sky, background, stars.
+        pdb.set_trace()
         img_noise = np.random.poisson(img, img.shape)
+        
 
         # Add readnoise
         img_noise += np.random.normal(loc=0, scale=readnoise, size=img.shape)
