@@ -107,7 +107,6 @@ class Observation(object):
         # ADD NOISE: Up to this point, the image is complete; but noise free.
         #####
         # Add Poisson noise from dark, sky, background, stars.
-        pdb.set_trace()
         img_noise = np.random.poisson(img, img.shape)
         
 
@@ -115,7 +114,7 @@ class Observation(object):
         img_noise += np.random.normal(loc=0, scale=readnoise, size=img.shape)
 
         # Save the image to the object
-        self.img = img_noise
+        self.img = img + img_noise
 
         # Create a table containing the information about the stars planted.
         stars_x = x[keep_idx]
@@ -131,7 +130,7 @@ class Observation(object):
     def save_to_fits(self, fitsfile, clobber=False):
         pyfits.writeto(fitsfile, self.img, clobber=clobber)
 
-        self.stars.write(fitsfile.replace('.fits', '_stars_table.fits'), format='fits')
+        self.stars.write(fitsfile.replace('.fits', '_stars_table.fits'), format='fits', overwrite=clobber)
 
         return
 

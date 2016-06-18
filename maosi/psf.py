@@ -88,8 +88,8 @@ class PSF_grid(object):
             raise ValueError('y is outside the valid PSF grid region')
         
         # Find the nearest PSF
-        xidx_lo = np.where(psf_x < x)[0][-1]
-        yidx_lo = np.where(psf_y < y)[0][-1]
+        xidx_lo = np.where(psf_x <= x)[0][-1]
+        yidx_lo = np.where(psf_y <= y)[0][-1]
         xidx_hi = xidx_lo + 1
         yidx_hi = yidx_lo + 1
 
