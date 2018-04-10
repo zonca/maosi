@@ -25,7 +25,7 @@ class PSF_grid(object):
         wave_shape = psf.shape[0]
 
         if wave_shape != len(wave_array):
-            print 'Problem with PSF shape and wave_array shape'
+            print('Problem with PSF shape and wave_array shape')
             
         # Reshape the array to get the X and Y positions
         psf = psf.reshape((wave_shape, grid_shape[0], grid_shape[1],

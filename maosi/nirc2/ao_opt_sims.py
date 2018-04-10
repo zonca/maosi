@@ -1,10 +1,10 @@
 import numpy as np
 import pyfits
 from astropy.table import Table
-from maosi.scene import Scene
-from maosi.instrument import Instrument
-from maosi.observation import Observation
-from maosi.psf import PSF_grid
+from scene import Scene
+from instrument import Instrument
+from observation import Observation
+from psf import PSF_grid
 import time
 
 class GCstars(Scene):
@@ -28,8 +28,11 @@ class GCstars(Scene):
         ZP_mag = 9.0
             
         f_now = 10**((self.stars['Kmag'] - ZP_mag) / -2.5) * ZP_flux
+        mag_now = self.stars['Kmag']
+        name_now = self.stars['name']
 
-        super(self.__class__, self).__init__(x_now, y_now, f_now)
+        super(self.__class__, self).__init__(x_now, y_now, f_now, mag_now,
+                                             name_now)
 
         return
 
@@ -43,6 +46,31 @@ class GCstars(Scene):
         dt = time - self.stars['t0']
         self.xpos = self.stars['x'] + (dt * self.stars['vx'])
         self.ypos = self.stars['y'] + (dt * self.stars['vy'])
+
+        return
+
+
+class Grid(Scene):
+    def __init__(self, n_grid, mag):
+        
+        # Prepare a grid of positions
+        img_size = 10 # Approximate size of the image (")
+        row = np.delete(np.arange(-(img_size / 2), (img_size / 2), (img_size / (n_grid + 1))), 0)
+        grid = np.asarray([row] * n_grid)
+        x_now = Table.Column(data=grid.flatten(), name='x')
+        y_now = Table.Column(data=grid.flatten('F'), name='x')
+
+        # Use the same magnitude calibration as in GCstars
+        aper_corr = 387.605
+        ZP_flux = (24000.0 * 4 / 2.8) * aper_corr
+        ZP_mag = 9.0
+
+        f_now = Table.Column(data=[10 ** ((mag - ZP_mag) / -2.5) * ZP_flux] * (n_grid ** 2), name='Kmag')
+        mag_now = Table.Column(data=[mag] * (n_grid ** 2), name='Kmag')
+        name_now = Table.Column(data=['dummy_star'] * (n_grid ** 2), name='name')
+
+        super(self.__class__, self).__init__(x_now, y_now, f_now, mag_now,
+                                             name_now)
 
         return
 
@@ -86,16 +114,16 @@ class PSF_grid_NIRC2_Kp(PSF_grid):
         wave_shape = 1
 
         if wave_shape != len(wave_array):
-            print 'Problem with PSF shape and wave_array shape'
+            print('Problem with PSF shape and wave_array shape')
 
 
         # Reshape the array to get the X and Y positions
-        psf = psf.reshape((wave_shape, grid_shape[0], grid_shape[1],
+        psf = psf.reshape((wave_shape, int(grid_shape[0]), int(grid_shape[1]),
                            psf.shape[1], psf.shape[2]))
         #psf = np.swapaxes(psf, 1, 2)
 
-        grid = grid_points.reshape((wave_shape, grid_shape[0], grid_shape[1],
-                                    grid_points.shape[1]))
+        grid = grid_points.reshape((wave_shape, int(grid_shape[0]),
+                                    int(grid_shape[1]), grid_points.shape[1]))
         #grid = np.swapaxes(grid, 1, 2)
         
 
@@ -137,8 +165,8 @@ def read_label_dat(label_file='/g/lu/data/gc/source_list/label.dat'):
     return gcstars
 
 def read_nirc2_psf_grid(psf_file, psf_grid_pos_file):
-    print 'Loading PSF grid from: '
-    print psf_file
+    print('Loading PSF grid from: ')
+    print(psf_file)
 
     # Read in the PSF grid (single array of PSFs)
     psfs = pyfits.getdata(psf_file)
@@ -153,6 +181,21 @@ def read_nirc2_psf_grid(psf_file, psf_grid_pos_file):
         psfs[ii][psfs[ii] < 0] = 0
             
         psfs[ii] /= psfs[ii].sum()
+    
+    # Order the PSFs by rows and then columns
+    # order_idx = []
+    # sort_y = np.argsort(psf_grid_pos[:, 1])
+    # 
+    # for ii in range(int(np.sqrt(psfs.shape[0]))):
+    #     row_idx = sort_y[range((int(np.sqrt(psfs.shape[0])) * ii),
+    #                        (int(np.sqrt(psfs.shape[0])) * (ii + 1)))]
+    #     sort_x = np.argsort(psf_grid_pos[row_idx, 0])
+    #     order_idx = np.append(order_idx, row_idx[sort_x])
+    # 
+    # psfs_order = psfs[order_idx.astype(int), :, :]
+    # psf_grid_pos_order = psf_grid_pos[order_idx.astype(int)]
+    # 
+    # return psfs_order, psf_grid_pos_order
 
     return psfs, psf_grid_pos
 
@@ -161,19 +204,19 @@ def test_nirc2_img(psf_grid_raw, psf_grid_pos, outname='tmp.fits'):
     
     nirc2 = NIRC2()
     
-    print 'Reading GC Label.dat: {0} sec'.format(time.time() - time_start)
+    print('Reading GC Label.dat: {0} sec'.format(time.time() - time_start))
     stars = GCstars()
 
     psfgrid = PSF_grid_NIRC2_Kp(psf_grid_raw, psf_grid_pos)
 
-    print 'Making Image: {0} sec'.format(time.time() - time_start)
+    print('Making Image: {0} sec'.format(time.time() - time_start))
     wave_index = 0
     background = 3.0 # elect_nicerons /sec
     obs = Observation(nirc2, stars, psfgrid,
                       wave_index, background,
                       origin=np.array([512, 512]))
     
-    print 'Saving Image: {0} sec'.format(time.time() - time_start)
+    print('Saving Image: {0} sec'.format(time.time() - time_start))
     obs.save_to_fits(outname, clobber=True)
     
     return

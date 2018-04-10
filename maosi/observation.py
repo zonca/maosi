@@ -47,15 +47,15 @@ class Observation(object):
         keep_idx = []
 
         # Add the point sources
-        print 'Observation: Adding stars one by one.'
+        print('Observation: Adding stars one by one.')
         for ii in range(len(x)):
             if ii % 1000 == 0:
-                print ii
+                print(ii)
             # Fetch the appropriate interpolated PSF and scale by flux.
             # This is only good to a single pixel.
             try:
                 psf = psf_grid.get_local_psf(x[ii], y[ii], wave)
-            except ValueError, err:
+            except ValueError as err:
                 # Skip this star.
                 continue
             
@@ -101,7 +101,7 @@ class Observation(object):
 
             keep_idx.append(ii)
 
-        print 'Observation: Finished adding stars.'
+        print('Observation: Finished adding stars.')
         
         #####
         # ADD NOISE: Up to this point, the image is complete; but noise free.
@@ -111,7 +111,8 @@ class Observation(object):
         
 
         # Add readnoise
-        img_noise += np.random.normal(loc=0, scale=readnoise, size=img.shape)
+        img_noise += np.random.normal(loc=0, scale=readnoise,
+                                      size=img.shape).astype(int)
 
         # Save the image to the object
         self.img = img + img_noise
@@ -120,8 +121,10 @@ class Observation(object):
         stars_x = x[keep_idx]
         stars_y = y[keep_idx]
         stars_counts = scene.flux[keep_idx] * flux_to_counts
-        stars = Table((stars_x, stars_y, stars_counts),
-                        names=("xpix", "ypix", "counts"),
+        stars_mags = scene.mag[keep_idx]
+        stars_names = scene.name[keep_idx]
+        stars = Table((stars_names, stars_x, stars_y, stars_counts, stars_mags),
+                        names=("names", "xpix", "ypix", "counts", "mags"),
                         meta={'name':'stars table'})
         self.stars = stars
         
