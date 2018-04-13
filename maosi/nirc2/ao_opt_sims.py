@@ -83,7 +83,7 @@ class NIRC2(Instrument):
         
         super(self.__class__, self).__init__(array_size, readnoise, dark_current, gain)
 
-        self.scale = 0.00952   # mas/pix
+        self.scale = 0.009952   # mas/pix
         self.tint = 2.8
         self.coadds = 10
         self.fowler = 8
@@ -103,7 +103,7 @@ class PSF_grid_NIRC2_Kp(PSF_grid):
         of PSFs. These are stored and you can interpolate between them
         if necessary.
         """
-        psf_scale = [0.010]  # arcseconds per pixel
+        psf_scale = [0.009952]  # arcseconds per pixel
 
         grid_shape_tmp = np.sqrt(psf.shape[0])
         grid_shape = np.array((grid_shape_tmp, grid_shape_tmp))
