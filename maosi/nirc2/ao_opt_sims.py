@@ -51,14 +51,22 @@ class GCstars(Scene):
 
 
 class Grid(Scene):
-    def __init__(self, n_grid, mag):
+    def __init__(self, n_grid, mag, noise=False):
         
         # Prepare a grid of positions
         img_size = 10 # Approximate size of the image (")
         row = np.delete(np.arange(-(img_size / 2), (img_size / 2), (img_size / (n_grid + 1))), 0)
         grid = np.asarray([row] * n_grid)
-        x_now = Table.Column(data=grid.flatten(), name='x')
-        y_now = Table.Column(data=grid.flatten('F'), name='x')
+        
+        if noise:
+            x_noise = np.random.uniform(low=-noise/2, high=noise/2, size=len(grid.flatten()))
+            y_noise = np.random.uniform(low=-noise/2, high=noise/2, size=len(grid.flatten()))
+        else:
+            x_noise = np.zeros(len(grid.flatten()))
+            y_noise = np.zeros(len(grid.flatten()))
+        
+        x_now = Table.Column(data=grid.flatten()+x_noise, name='x')
+        y_now = Table.Column(data=grid.flatten('F')+y_noise, name='x')
 
         # Use the same magnitude calibration as in GCstars
         aper_corr = 387.605
