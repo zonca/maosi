@@ -72,10 +72,11 @@ class PSF_grid(object):
         return cls(psf, wave_array=wave_array, grid_shape=grid_shape)
 
         
-    def get_local_psf(self, x, y, wave_idx):
+    def get_local_psf(self, x, y, wave_idx, method='bilinear'):
         """
         Return an interpolated PSF at the requested [x, y] location.
-        Interpolation method is fast bilinear interpolation.
+        Interpolation method is nearest neighbor ('neighbor', default) or
+        bilinear interpolation ('bilinear').
         """
         psf_x = self.psf_x
         psf_y = self.psf_y
@@ -87,24 +88,31 @@ class PSF_grid(object):
         if (y < psf_y[0]) or (y > psf_y[-1]):
             raise ValueError('y is outside the valid PSF grid region')
         
-        # Find the nearest PSF
-        xidx_lo = np.where(psf_x <= x)[0][-1]
-        yidx_lo = np.where(psf_y <= y)[0][-1]
-        xidx_hi = xidx_lo + 1
-        yidx_hi = yidx_lo + 1
+        # Find the PSF
+        if method == 'neighbor':
+            xidx = np.argmin(abs(psf_x - x))
+            yidx = np.argmin(abs(psf_y - y))
 
-        psf_xlo_ylo = self.psf[wave_idx, yidx_lo, xidx_lo]
-        psf_xhi_ylo = self.psf[wave_idx, yidx_lo, xidx_hi]
-        psf_xlo_yhi = self.psf[wave_idx, yidx_hi, xidx_lo]
-        psf_xhi_yhi = self.psf[wave_idx, yidx_hi, xidx_hi]
+            psf_loc = self.psf[wave_idx, yidx, xidx]
 
-        dx = 1. * (x - psf_x[xidx_lo]) / (psf_x[xidx_hi] - psf_x[xidx_lo])
-        dy = 1. * (y - psf_y[yidx_lo]) / (psf_y[yidx_hi] - psf_y[yidx_lo])
+        elif method == 'bilinear':
+            xidx_lo = np.where(psf_x <= x)[0][-1]
+            yidx_lo = np.where(psf_y <= y)[0][-1]
+            xidx_hi = xidx_lo + 1
+            yidx_hi = yidx_lo + 1
 
-        psf_loc = ((1 - dx) * (1 - dy) * psf_xlo_ylo +
-                   (1 - dx) * (  dy  ) * psf_xlo_yhi +
-                   (  dx  ) * (1 - dy) * psf_xhi_ylo +
-                   (  dx  ) * (  dy  ) * psf_xhi_yhi)
+            psf_xlo_ylo = self.psf[wave_idx, yidx_lo, xidx_lo]
+            psf_xhi_ylo = self.psf[wave_idx, yidx_lo, xidx_hi]
+            psf_xlo_yhi = self.psf[wave_idx, yidx_hi, xidx_lo]
+            psf_xhi_yhi = self.psf[wave_idx, yidx_hi, xidx_hi]
+
+            dx = 1. * (x - psf_x[xidx_lo]) / (psf_x[xidx_hi] - psf_x[xidx_lo])
+            dy = 1. * (y - psf_y[yidx_lo]) / (psf_y[yidx_hi] - psf_y[yidx_lo])
+
+            psf_loc = ((1 - dx) * (1 - dy) * psf_xlo_ylo +
+                       (1 - dx) * (  dy  ) * psf_xlo_yhi +
+                       (  dx  ) * (1 - dy) * psf_xhi_ylo +
+                       (  dx  ) * (  dy  ) * psf_xhi_yhi)
             
         return psf_loc
 

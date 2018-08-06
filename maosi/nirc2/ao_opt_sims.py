@@ -189,21 +189,6 @@ def read_nirc2_psf_grid(psf_file, psf_grid_pos_file):
         psfs[ii][psfs[ii] < 0] = 0
             
         psfs[ii] /= psfs[ii].sum()
-    
-    # Order the PSFs by rows and then columns
-    # order_idx = []
-    # sort_y = np.argsort(psf_grid_pos[:, 1])
-    # 
-    # for ii in range(int(np.sqrt(psfs.shape[0]))):
-    #     row_idx = sort_y[range((int(np.sqrt(psfs.shape[0])) * ii),
-    #                        (int(np.sqrt(psfs.shape[0])) * (ii + 1)))]
-    #     sort_x = np.argsort(psf_grid_pos[row_idx, 0])
-    #     order_idx = np.append(order_idx, row_idx[sort_x])
-    # 
-    # psfs_order = psfs[order_idx.astype(int), :, :]
-    # psf_grid_pos_order = psf_grid_pos[order_idx.astype(int)]
-    # 
-    # return psfs_order, psf_grid_pos_order
 
     return psfs, psf_grid_pos
 

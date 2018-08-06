@@ -8,7 +8,7 @@ from astropy.table import Table
 
 class Observation(object):
     def __init__(self, instrument, scene, psf_grid, wave, background,
-                 origin=[0,0], PA=0):
+                 origin=[0,0], PA=0, method='bilinear'):
         """
         background - Background in electrons per second
         origin - a 2D array giving the pixel coordinates that correspond
@@ -22,8 +22,8 @@ class Observation(object):
         # This will be the image in electrons... convert to DN at the end.
         img = np.zeros(instrument.array_size, dtype=float)
 
-        itime_tot = instrument.itime * instrument.coadds
-        flux_to_counts = itime_tot / instrument.gain
+        tint_tot = instrument.tint * instrument.coadds
+        flux_to_counts = tint_tot / instrument.gain
 
         # Add the background and dark current in electrons
         img += (background + instrument.dark_current) * flux_to_counts
@@ -54,7 +54,7 @@ class Observation(object):
             # Fetch the appropriate interpolated PSF and scale by flux.
             # This is only good to a single pixel.
             try:
-                psf = psf_grid.get_local_psf(x[ii], y[ii], wave)
+                psf = psf_grid.get_local_psf(x[ii], y[ii], wave, method=method)
             except ValueError as err:
                 # Skip this star.
                 continue
@@ -73,7 +73,8 @@ class Observation(object):
 
             # Make the interpolation object.
             # Can't keep this because we have a spatially variable PSF.
-            psf_interp = RectBivariateSpline(psf_j_old, psf_i_old, psf, kx=1, ky=1)
+            psf_interp = RectBivariateSpline(psf_j_old, psf_i_old, psf,
+                                             kx=1, ky=1)
 
             # New grid of points to evaluate at for this star.
             xlo = int(psf_i_old[0])
