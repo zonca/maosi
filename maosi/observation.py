@@ -7,16 +7,26 @@ import pdb
 from astropy.table import Table
 from astropy.io import fits
 
+
 class Observation(object):
-    def __init__(self, instrument, scene, psf_grid, wave, background,
-                 origin=[0,0], PA=0, method='bilinear'):
+    def __init__(
+        self,
+        instrument,
+        scene,
+        psf_grid,
+        wave,
+        background,
+        origin=[0, 0],
+        PA=0,
+        method="bilinear",
+    ):
         """
         background - Background in electrons per second
         origin - a 2D array giving the pixel coordinates that correspond
                  to the 0, 0 point in the arcsecond-based coordinate
                  system for the scene. This (along with the PA and the
                  instrument scale) allows the scene coordinates to be
-                 converted into pixel coordinates. 
+                 converted into pixel coordinates.
         PA - the position angle (east of north) of the Y-axis of the
              detector in degrees. Default is zero.
         """
@@ -43,12 +53,11 @@ class Observation(object):
         psf_i_scaled = psf_i * (psf_grid.psf_scale[wave] / instrument.scale)
 
         x, y = convert_scene_to_pixels(scene, instrument, origin, PA)
-    
 
         keep_idx = []
 
         # Add the point sources
-        print('Observation: Adding stars one by one.')
+        print("Observation: Adding stars one by one.")
         for ii in range(len(x)):
             if ii % 1000 == 0:
                 print(ii)
@@ -59,7 +68,7 @@ class Observation(object):
             except ValueError as err:
                 # Skip this star.
                 continue
-            
+
             psf *= scene.flux[ii] * flux_to_counts
 
             if psf.min() < 0:
@@ -74,8 +83,7 @@ class Observation(object):
 
             # Make the interpolation object.
             # Can't keep this because we have a spatially variable PSF.
-            psf_interp = RectBivariateSpline(psf_j_old, psf_i_old, psf,
-                                             kx=1, ky=1)
+            psf_interp = RectBivariateSpline(psf_j_old, psf_i_old, psf, kx=1, ky=1)
 
             # New grid of points to evaluate at for this star.
             xlo = int(psf_i_old[0])
@@ -92,7 +100,7 @@ class Observation(object):
                 ylo = 0
             if yhi > img.shape[0]:
                 yhi = img.shape[0]
-                
+
             # Interpolate the PSF onto the new grid.
             psf_i_new = np.arange(xlo, xhi)
             psf_j_new = np.arange(ylo, yhi)
@@ -103,18 +111,18 @@ class Observation(object):
 
             keep_idx.append(ii)
 
-        print('Observation: Finished adding stars.')
-        
+        print("Observation: Finished adding stars.")
+
         #####
         # ADD NOISE: Up to this point, the image is complete; but noise free.
         #####
         # Add Poisson noise from dark, sky, background, stars.
         img_noise = np.random.poisson(img, img.shape)
-        
 
         # Add readnoise
-        img_noise += np.random.normal(loc=0, scale=readnoise,
-                                      size=img.shape).astype(int)
+        img_noise += np.random.normal(loc=0, scale=readnoise, size=img.shape).astype(
+            int
+        )
 
         # Save the image to the object
         self.img = img + img_noise
@@ -125,27 +133,34 @@ class Observation(object):
         stars_counts = scene.flux[keep_idx] * flux_to_counts
         stars_mags = scene.mag[keep_idx]
         stars_names = scene.name[keep_idx]
-        stars = Table((stars_names, stars_x, stars_y, stars_counts, stars_mags),
-                        names=("names", "xpix", "ypix", "counts", "mags"),
-                        meta={'name':'stars table'})
+        stars = Table(
+            (stars_names, stars_x, stars_y, stars_counts, stars_mags),
+            names=("names", "xpix", "ypix", "counts", "mags"),
+            meta={"name": "stars table"},
+        )
         self.stars = stars
-        
+
         return
 
     def save_to_fits(self, fitsfile, clobber=False):
         fits.writeto(fitsfile, self.img, clobber=clobber)
 
-        self.stars.write(fitsfile.replace('.fits', '_stars_table.fits'), format='fits', overwrite=clobber)
+        self.stars.write(
+            fitsfile.replace(".fits", "_stars_table.fits"),
+            format="fits",
+            overwrite=clobber,
+        )
 
         return
 
+
 def convert_scene_to_pixels(scene, instrument, origin, posang):
     # Remeber that python images are indexed with img[y, x].
-    
+
     # Get the X and Y pixel positions of the sources in the scene.
     # We assume they are in arcseconds increasing to the North and East.
-    x_tmp = (scene.xpos / instrument.scale)
-    y_tmp = (scene.ypos / instrument.scale)
+    x_tmp = scene.xpos / instrument.scale
+    y_tmp = scene.ypos / instrument.scale
 
     # Rotate to the proper PA (rotate counter-clockwise by the specified angle)
     sina = math.sin(math.radians(posang))
@@ -161,4 +176,3 @@ def convert_scene_to_pixels(scene, instrument, origin, posang):
     y_pix += origin[1]
 
     return x_pix, y_pix
-

@@ -1,4 +1,3 @@
-
 class Scene(object):
     """
     Allow the user to specify some scene consisting of a set of
@@ -23,4 +22,3 @@ class Scene(object):
         self.name = stars_name
 
         return
-

@@ -1,4 +1,3 @@
-
 class Instrument(object):
     def __init__(self, array_size, readnoise, dark_current, gain):
         """
@@ -7,7 +6,7 @@ class Instrument(object):
         dark_current - in units of electrons per second per pixel
         gain - in units of electrons per DN
         """
-        
+
         self.array_size = array_size
         self.readnoise = readnoise
         self.gain = gain
@@ -26,8 +25,6 @@ class Instrument(object):
         self.fowler = 1
 
         # Pixel Scale (arcsec / pixel)
-        self.scale = 0.1 
+        self.scale = 0.1
 
         return
-
-
