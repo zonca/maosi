@@ -1,10 +1,11 @@
 import numpy as np
 import pylab as py
-import pyfits
+
 from scipy.interpolate import RectBivariateSpline
 import math
 import pdb
 from astropy.table import Table
+from astropy.io import fits
 
 class Observation(object):
     def __init__(self, instrument, scene, psf_grid, wave, background,
@@ -132,7 +133,7 @@ class Observation(object):
         return
 
     def save_to_fits(self, fitsfile, clobber=False):
-        pyfits.writeto(fitsfile, self.img, clobber=clobber)
+        fits.writeto(fitsfile, self.img, clobber=clobber)
 
         self.stars.write(fitsfile.replace('.fits', '_stars_table.fits'), format='fits', overwrite=clobber)
 

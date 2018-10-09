@@ -4,7 +4,7 @@ import instrument
 import observation
 import numpy as np
 import pylab as py
-import pyfits
+from astropy.io import fits
 import time
 
 Nstars = 100
@@ -20,7 +20,7 @@ def prepare_test_imaka(rootdir='/Users/jlu/work/imaka/sims/psfs/'):
 
     print('Loading PSF grid from: ')
     print(psf_file)
-    psf_grid_raw = pyfits.getdata(psf_file)
+    psf_grid_raw = fits.getdata(psf_file)
 
     return psf_grid_raw
 

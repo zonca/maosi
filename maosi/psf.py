@@ -1,6 +1,6 @@
 import numpy as np
 import pylab as py
-import pyfits
+from astropy.io import fits
 
 class PSF_grid(object):
     """
@@ -67,7 +67,7 @@ class PSF_grid(object):
                   wave_array=[487, 625, 770, 870, 1020, 1250, 1650, 2120],
                   grid_shape=[11,11]):
         # 4D array with [wave, grid_idx, flux_x, flux_y]
-        psf = pyfits.getdata(psf_file)
+        psf = fits.getdata(psf_file)
 
         return cls(psf, wave_array=wave_array, grid_shape=grid_shape)
 
